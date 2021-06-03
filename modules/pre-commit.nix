@@ -117,6 +117,12 @@ let
                 description = "Whether to pass filenames as arguments to the entry point.";
                 default = true;
               };
+            always_run =
+              mkOption {
+                type = types.bool;
+                description = "Whether to run this hook even if there are no matching files.";
+                default = false;
+              };
           };
         config =
           {
