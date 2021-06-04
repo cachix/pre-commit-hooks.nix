@@ -14,7 +14,7 @@ let
   inherit (pkgs) runCommand writeText git;
 
   cfg = config;
-  install_stages = cfg.default_stages;
+  install_stages = lib.unique (cfg.default_stages ++ (builtins.concatLists (lib.mapAttrsToList (_: h: h.stages) enabledHooks)));
 
   hookType =
     types.submodule (
@@ -117,12 +117,18 @@ let
                 description = "Whether to pass filenames as arguments to the entry point.";
                 default = true;
               };
+            stages =
+              mkOption {
+                type = types.listOf types.str;
+                description = "Confines the hook to run at a particular stage.";
+                default = cfg.default_stages;
+              };
           };
         config =
           {
             raw =
               {
-                inherit (config) name entry language files types types_or pass_filenames;
+                inherit (config) name entry language files stages types types_or pass_filenames;
                 id = name;
                 exclude = mergeExcludes config.excludes;
               };
@@ -273,10 +279,9 @@ in
             ''
               A configuration wide option for the stages property.
               Installs hooks to the defined stages.
-              Default is empty which falls back to 'commit'.
               See https://pre-commit.com/#confining-hooks-to-run-at-certain-stages
             '';
-          default = [ ];
+          default = [ "commit" ];
         };
 
       rawConfig =

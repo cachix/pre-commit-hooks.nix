@@ -5,7 +5,7 @@ builtinStuff@{ pkgs, tools, isFlakes, pre-commit, git, runCommand, writeText, wr
 , excludes ? [ ]
 , tools ? { }
 , settings ? { }
-, default_stages ? [ ]
+, default_stages ? [ "commit" ]
 }:
 let
   project =
