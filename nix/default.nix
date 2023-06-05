@@ -22,6 +22,9 @@ let
           src = ../.;
           hooks = {
             shellcheck.enable = true;
+            # `types_or = [ ... something ... ]` doesn't pick up our .sh file
+            shellcheck.types_or = nixpkgs.lib.mkForce [ ];
+
             nixpkgs-fmt.enable = true;
           };
         };
