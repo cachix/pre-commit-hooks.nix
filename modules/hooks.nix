@@ -1388,6 +1388,26 @@ in
           entry = "${tools.nixpkgs-fmt}/bin/nixpkgs-fmt";
           files = "\\.nix$";
         };
+      nix-flake-lock =
+        {
+          name = "nix-flake-lock";
+          description = "Check that flake.lock is up to date";
+          types = [ "file" ];
+          pass_filenames = false;
+          files = "flake.*$";
+          entry = lib.getExe (pkgs.writeShellApplication {
+            name = "nix-flake-lock";
+            text = ''
+              echo "Checking that flake.lock is up to date"
+              if ${lib.getExe pkgs.nix} --extra-experimental-features "nix-command flakes" flake lock --no-update-lock-file; then
+                echo "flake.lock is up to date"
+              else
+                echo "flake.lock is not up to date. Run 'nix flake lock' to update it." 
+                exit 1
+              fi
+            '';
+          });
+        };
       statix =
         {
           name = "statix";
