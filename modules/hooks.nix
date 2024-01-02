@@ -813,6 +813,17 @@ in
           };
         };
 
+      yamlfmt =
+        {
+          configPath = mkOption {
+            type = types.str;
+            description = lib.mdDoc "Path to the YAML configuration file.";
+            # an empty string translates to use default configuration of the
+            # underlying yamlfmt binary
+            default = "";
+          };
+        };
+
       clippy =
         {
           denyWarnings = mkOption {
@@ -1485,6 +1496,20 @@ in
                 ];
             in
             "${tools.yamllint}/bin/yamllint ${cmdArgs}";
+        };
+      yamlfmt =
+        {
+          name = "yamlfmt";
+          description = "Yaml formatter";
+          types = [ "file" "yaml" ];
+          entry =
+            let
+              cmdArgs =
+                mkCmdArgs [
+                  [ (settings.yamlfmt.configPath != "") "-c ${settings.yamlfmt.configPath}" ]
+                ];
+            in
+            "${tools.yamlfmt}/bin/yamlfmt ${cmdArgs}";
         };
       rustfmt =
         let

@@ -66,6 +66,7 @@
 , typos
 , typst-fmt
 , yamllint
+, yamlfmt
 , writeScript
 , writeText
 , go
@@ -132,6 +133,7 @@ in
     typos
     typst-fmt
     yamllint
+    yamlfmt
     ;
   inherit (elmPackages) elm-format elm-review elm-test;
   # TODO: these two should be statically compiled
