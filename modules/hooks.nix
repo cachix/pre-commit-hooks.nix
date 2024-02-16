@@ -1492,18 +1492,52 @@ in
         type = types.submodule {
           imports = hookModule;
           options.settings = {
-            relaxed = mkOption {
-              type = types.bool;
-              description = lib.mdDoc "Whether to use the relaxed configuration.";
-              default = false;
-            };
+            # `list-files` is not useful for a pre-commit hook as it always exits with exit code 0
+            # `no-warnings` is not useful for a pre-commit hook as it exits with exit code 2 and the hook
+            # therefore fails when warnings level problems are detected but there is no output
+            configuration = mkOption {
+              type = types.str;
+              description = lib.mdDoc "Multiline-string configuration passed as config file. If set, configuration file set in `yamllint.settings.configPath` gets ignored.";
+              default = "";
+              example = ''
+                ---
 
+                extends: relaxed
+
+                rules:
+                  indentation: enable
+              '';
+            };
+            configData = mkOption {
+              type = types.str;
+              description = lib.mdDoc "Serialized YAML object describing the configuration.";
+              default = "";
+              example = "{extends: relaxed, rules: {line-length: {max: 120}}}";
+            };
             configPath = mkOption {
               type = types.str;
-              description = lib.mdDoc "Path to the YAML configuration file.";
-              # an empty string translates to use default configuration of the
-              # underlying yamllint binary
+              description = lib.mdDoc "Path to a custom configuration file.";
+              # An empty string translates to yamllint looking for a configuration file in the
+              # following locations (by order of preference):
+              # a file named .yamllint, .yamllint.yaml or .yamllint.yml in the current working directory
+              # a filename referenced by $YAMLLINT_CONFIG_FILE, if set
+              # a file named $XDG_CONFIG_HOME/yamllint/config or ~/.config/yamllint/config, if present
               default = "";
+            };
+            format = mkOption {
+              type = types.enum [ "parsable" "standard" "colored" "github" "auto" ];
+              description = lib.mdDoc "Format for parsing output.";
+              default = "auto";
+            };
+            preset = mkOption {
+              type = types.enum [ "default" "relaxed" ];
+              description = lib.mdDoc "The configuration preset to use.";
+              default = "default";
+            };
+            strict = mkOption {
+              type = types.bool;
+              description = lib.mdDoc "Return non-zero exit code on warnings as well as errors.";
+              default = true;
             };
           };
         };
@@ -2926,16 +2960,23 @@ in
       yamllint =
         {
           name = "yamllint";
-          description = "Yaml linter.";
+          description = "Linter for YAML files.";
           types = [ "file" "yaml" ];
           package = tools.yamllint;
           entry =
             let
+              configFile = builtins.toFile "yamllint.yaml" "${hooks.yamllint.settings.configuration}";
               cmdArgs =
-                mkCmdArgs [
-                  [ (hooks.yamllint.settings.relaxed) "-d relaxed" ]
-                  [ (hooks.yamllint.settings.configPath != "") "-c ${hooks.yamllint.settings.configPath}" ]
-                ];
+                mkCmdArgs
+                  (with hooks.yamllint.settings; [
+                    # Priorize multiline configuration over serialized configuration and configuration file
+                    [ (configuration != "") "--config-file ${configFile}" ]
+                    [ (configData != "" && configuration == "") "--config-data \"${configData}\"" ]
+                    [ (configPath != "" && configData == "" && configuration == "" && preset == "default") "--config-file ${configPath}" ]
+                    [ (format != "auto") "--format ${format}" ]
+                    [ (preset != "default" && configuration == "") "--config-data ${preset}" ]
+                    [ strict "--strict" ]
+                  ]);
             in
             "${hooks.yamllint.package}/bin/yamllint ${cmdArgs}";
         };
