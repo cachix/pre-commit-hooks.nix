@@ -1340,10 +1340,11 @@ in
                 default = "auto";
               };
 
+            # It is recommended to use `configFile`.
             config =
               mkOption {
                 type = types.str;
-                description = lib.mdDoc "Multiline-string configuration passed as config file. If set, config set in `typos.settings.configPath` gets ignored.";
+                description = lib.mdDoc "Multiline-string configuration passed as config file. If set, config set in `typos.settings.config{File|Path}` gets ignored.";
                 default = "";
                 example = ''
                   [files]
@@ -1357,6 +1358,22 @@ in
                 '';
               };
 
+            # Recommended way to specifcy a config, as this way, exludes can be
+            # taken into account by pre-commit when running
+            # `$ pre-commit run --all-files`.
+            # We provide configFile and configPath for API compatibility with
+            # previous versions and coherence with other hooks defined here.
+            configFile =
+              mkOption {
+                type = types.nullOr types.path;
+                description = lib.mdDoc "Path to a typos config file (in Nix store).";
+                default = null;
+                example = "./.typos.toml";
+              };
+
+            # It is recommended to use `configFile` instead, as it provides more
+            # flexibility and a more correct/expected behaviour to what
+            # `$ typos .` does.
             configPath =
               mkOption {
                 type = types.str;
@@ -2866,6 +2883,57 @@ in
           entry = "${hooks.treefmt.package}/bin/treefmt --fail-on-change";
         };
       typos =
+        let
+          # Since we don't set "pass_filenames = false" for typos (see
+          # upstream discussions [0]), we must ensure that pre-commit never
+          # passes the files specified as excludes in `.typos.toml` to
+          # `typos` as argument, if possible.
+          #
+          # Otherwise, `$ pre-commit run typos --all-files` has another
+          # behaviour than `$ typos .`, which is confusing and wrong.
+          #
+          # To not break anything, and to be compliant with the existing
+          # API, we encourage users to provide the `.typos.toml` as Nix
+          # path, so the excludes can be read via evaluation time.
+          #
+          # The `configAsFile` variable is the path where the configuration
+          # file can be found by the `typos` utility when it executes in the
+          # user environment. Not necessarily in Nix store.
+          #
+          # [0]: https://github.com/cachix/pre-commit-hooks.nix/pull/387#issuecomment-1893600631
+          configAsFile =
+            # Highest precedence.
+            if hooks.typos.settings.configFile != null
+            then (toString hooks.typos.settings.configFile)
+            # Secondary precedence.
+            else if hooks.typos.settings.configPath != ""
+            then hooks.typos.settings.configPath
+            # Lowest precedence.
+            else
+              builtins.toFile "config.toml"
+                # Concatenate config in config file with section for ignoring words
+                # generated from list of words to ignore
+                ("${hooks.typos.settings.config}" +
+                  lib.strings.optionalString (hooks.typos.settings.ignored-words != [ ]) "\n\[default.extend-words\]" +
+                  lib.strings.concatMapStrings (x: "\n${x} = \"${x}\"") hooks.typos.settings.ignored-words
+                )
+          ;
+          # If the config file path is passed as Nix string and not as Nix
+          # Path, we can't read it from Nix, unfortunately.
+          excludesFromConfig =
+            if hooks.typos.settings.configPath == "" # passed directly or as Path
+            then
+              (
+                let
+                  toml = builtins.fromTOML (builtins.readFile configAsFile);
+                in
+                # The "files.extend-exclude" key comes from
+                  # https://github.com/crate-ci/typos/blob/master/docs/reference.md
+                  (toml.files or { }).extend-exclude or [ ]
+              )
+            else
+              [ ];
+        in
         {
           name = "typos";
           description = "Source code spell checker";
@@ -2880,8 +2948,8 @@ in
                   (with hooks.typos.settings; [
                     [ binary "--binary" ]
                     [ (color != "auto") "--color ${color}" ]
-                    [ (config != "") "--config ${configFile}" ]
-                    [ (configPath != "" && config == "") "--config ${configPath}" ]
+                    # Config file always exists (we generate one if not).
+                    [ true "--config ${configAsFile}" ]
                     [ diff "--diff" ]
                     [ (exclude != "") "--exclude ${exclude} --force-exclude" ]
                     [ (format != "long") "--format ${format}" ]
@@ -2897,6 +2965,7 @@ in
             in
             "${hooks.typos.package}/bin/typos ${cmdArgs}";
           types = [ "text" ];
+          excludes = excludesFromConfig;
         };
       typstfmt = {
         name = "typstfmt";
