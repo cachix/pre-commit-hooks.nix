@@ -2,7 +2,7 @@
 let
   inherit (config) hooks tools settings;
   cfg = config;
-  inherit (lib) flatten mapAttrs mapAttrsToList mkDefault mkOption mkRenamedOptionModule types;
+  inherit (lib) flatten mapAttrs mapAttrsToList mkDefault mkOption mkRemovedOptionModule mkRenamedOptionModule types;
 
   hookModule =
     [
@@ -42,7 +42,15 @@ in
     })
     # Rename the remaining `settings.<name>` to `hooks.<name>.settings`
     ++ map (name: mkRenamedOptionModule [ "settings" name ] [ "hooks" name "settings" ])
-      [ "ansible-lint" "autoflake" "clippy" "cmake-format" "credo" "deadnix" "denofmt" "denolint" "dune-fmt" "eslint" "flake8" "headache" "hlint" "hpack" "isort" "latexindent" "lua-ls" "lychee" "markdownlint" "mkdocs-linkcheck" "mypy" "nixfmt" "ormolu" "php-cs-fixer" "phpcbf" "phpcs" "phpstan" "prettier" "psalm" "pylint" "pyright" "pyupgrade" "revive" "rome" "statix" "typos" "vale" "yamllint" ];
+      [ "ansible-lint" "autoflake" "clippy" "cmake-format" "credo" "deadnix" "denofmt" "denolint" "dune-fmt" "eslint" "flake8" "headache" "hlint" "hpack" "isort" "latexindent" "lua-ls" "lychee" "markdownlint" "mkdocs-linkcheck" "mypy" "nixfmt" "ormolu" "php-cs-fixer" "phpcbf" "phpcs" "phpstan" "prettier" "psalm" "pylint" "pyright" "pyupgrade" "revive" "rome" "statix" "typos" "vale" "yamllint" ]
+    # These options were renamed in 20fbe2c9731810b1020572a2cb6cbf64e3dd3873 to avoid shadowing
+    ++ map (name: mkRenamedOptionModule [ "hooks" name "settings" "config" ] [ "hooks" name "settings" "configuration" ])
+      [ "typos" "vale" ]
+    ++ [
+      (mkRemovedOptionModule [ "hooks" "yamllint" "settings" "relaxed" ] ''
+        This option has been removed. Use `hooks.yamllint.settings.preset = "relaxed"`.
+      '')
+    ];
 
   # PLEASE keep this sorted alphabetically.
   options.settings = {
