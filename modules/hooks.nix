@@ -46,10 +46,24 @@ in
 
   # PLEASE keep this sorted alphabetically.
   options.settings = {
-    rust.cargoManifestPath = mkOption {
-      type = types.nullOr types.str;
-      description = lib.mdDoc "Path to Cargo.toml";
-      default = null;
+    runtimeDeps = mkOption {
+      type = types.listOf types.package;
+      description = lib.mdDoc "Runtime dependencies needed to run the checks.";
+      default = [ ];
+      example = "[ pkgs.openssl ]";
+    };
+    rust = {
+      cargoDeps = mkOption {
+        type = types.nullOr types.attrs;
+        description = lib.mdDoc "Cargo dependencies";
+        example = "pkgs.rustPlatform.importCargoLock { lockFile = ./Cargo.lock; }";
+        default = null;
+      };
+      cargoManifestPath = mkOption {
+        type = types.nullOr types.str;
+        description = lib.mdDoc "Path to Cargo.toml";
+        default = null;
+      };
     };
   };
 

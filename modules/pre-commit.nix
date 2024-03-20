@@ -13,6 +13,8 @@ let
     ;
 
   inherit (pkgs) runCommand writeText git;
+  inherit (pkgs.rustPlatform) cargoSetupHook;
+  inherit (pkgs.stdenv) mkDerivation;
 
   cfg = config;
   install_stages = lib.unique (cfg.default_stages ++ (builtins.concatLists (lib.mapAttrsToList (_: h: h.stages) enabledHooks)));
@@ -54,34 +56,41 @@ let
     );
 
   run =
-    runCommand "pre-commit-run" { buildInputs = [ git ]; } ''
-      set +e
-      HOME=$PWD
-      # Use `chmod +w` instead of `cp --no-preserve=mode` to be able to write and to
-      # preserve the executable bit at the same time
-      cp -R ${cfg.rootSrc} src
-      chmod -R +w src
-      ln -fs ${configFile} src/.pre-commit-config.yaml
-      cd src
-      rm -rf .git
-      git init
-      git add .
-      git config --global user.email "you@example.com"
-      git config --global user.name "Your Name"
-      git commit -m "init"
-      if [[ ${toString (compare install_stages [ "manual" ])} -eq 0 ]]
-      then
-        echo "Running: $ pre-commit run --hook-stage manual --all-files"
-        ${cfg.package}/bin/pre-commit run --hook-stage manual --all-files
-      else
-        echo "Running: $ pre-commit run --all-files"
-        ${cfg.package}/bin/pre-commit run --all-files
-      fi
-      exitcode=$?
-      git --no-pager diff --color
-      touch $out
-      [ $? -eq 0 ] && exit $exitcode
-    '';
+    mkDerivation {
+      name = "pre-commit-run";
+
+      src = cfg.rootSrc;
+      buildInputs = [ git ];
+      nativeBuildInputs = config.settings.runtimeDeps
+        ++ (if config.settings.rust.cargoDeps != null
+      then [
+        cargoSetupHook
+      ]
+      else [ ]);
+      cargoDeps = config.settings.rust.cargoDeps;
+      buildPhase = ''
+        set +e
+        HOME=$PWD
+        ln -fs ${configFile} .pre-commit-config.yaml
+        git init
+        git add .
+        git config --global user.email "you@example.com"
+        git config --global user.name "Your Name"
+        git commit -m "init"
+        if [[ ${toString (compare install_stages [ "manual" ])} -eq 0 ]]
+        then
+          echo "Running: $ pre-commit run --hook-stage manual --all-files"
+          ${cfg.package}/bin/pre-commit run --hook-stage manual --all-files
+        else
+          echo "Running: $ pre-commit run --all-files"
+          ${cfg.package}/bin/pre-commit run --all-files
+        fi
+        exitcode=$?
+        git --no-pager diff --color
+        touch $out
+        [ $? -eq 0 ] && exit $exitcode
+      '';
+    };
 
   failedAssertions = builtins.map (x: x.message) (builtins.filter (x: !x.assertion) config.assertions);
 
