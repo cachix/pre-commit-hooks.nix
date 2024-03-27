@@ -1464,14 +1464,14 @@ in
             quiet =
               mkOption {
                 type = types.bool;
-                description = lib.mdDoc "Less output per occurence.";
+                description = lib.mdDoc "Less output per occurrence.";
                 default = false;
               };
 
             verbose =
               mkOption {
                 type = types.bool;
-                description = lib.mdDoc "More output per occurence.";
+                description = lib.mdDoc "More output per occurrence.";
                 default = false;
               };
 
@@ -2315,7 +2315,7 @@ in
         };
       lychee = {
         name = "lychee";
-        description = "A fast, async, stream-based link checker that finds broken hyperlinks and mail adresses inside Markdown, HTML, reStructuredText, or any other text file or website.";
+        description = "A fast, async, stream-based link checker that finds broken hyperlinks and mail addresses inside Markdown, HTML, reStructuredText, or any other text file or website.";
         package = tools.lychee;
         entry =
           let
@@ -2959,7 +2959,7 @@ in
         package = tools.vale;
         entry =
           let
-            # TODO: was .vale.ini, throwed error in Nix
+            # TODO: was .vale.ini, threw error in Nix
             configFile = builtins.toFile "vale.ini" "${hooks.vale.settings.config}";
             cmdArgs =
               mkCmdArgs

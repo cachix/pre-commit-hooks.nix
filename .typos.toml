@@ -1,0 +1,3 @@
+[default.extend-words]
+edn = "edn"             # `cljfmt` option
+mosquitto = "mosquitto" # `typos` example

@@ -50,7 +50,7 @@ in
         ''
           An optional package that provides the hook.
 
-          For most hooks, the package name matches the name of the hook and can be overriden directly.
+          For most hooks, the package name matches the name of the hook and can be overridden directly.
 
           ```
           hooks.nixfmt.package = pkgs.nixfmt;
