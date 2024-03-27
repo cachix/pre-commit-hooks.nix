@@ -2534,6 +2534,22 @@ in
             "${binPath} analyse";
           types = [ "php" ];
         };
+      poetry-check = {
+        name = "poetry check";
+        description = "Check the Poetry config for errors";
+        package = tools.poetry;
+        entry = "${hooks.poetry-check.package}/bin/poetry check";
+        files = "^(poetry\\.lock$|pyproject\\.toml)$";
+        pass_filenames = false;
+      };
+      poetry-lock = {
+        name = "poetry lock";
+        description = "Update the Poetry lock file";
+        package = tools.poetry;
+        entry = "${hooks.poetry-lock.package}/bin/poetry lock";
+        files = "^(poetry\\.lock$|pyproject\\.toml)$";
+        pass_filenames = false;
+      };
       pre-commit-hook-ensure-sops = {
         name = "pre-commit-hook-ensure-sops";
         package = tools.pre-commit-hook-ensure-sops;
