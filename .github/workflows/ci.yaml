@@ -15,7 +15,9 @@ jobs:
       with:
         name: pre-commit-hooks
         signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
-    - run: nix-build --keep-going
+    - run: nix-build --keep-going --impure
+      env:
+        NIXPKGS_ALLOW_UNFREE: 1
   tests-flakes:
     strategy:
       matrix:
@@ -28,5 +30,7 @@ jobs:
       with:
         name: pre-commit-hooks
         signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
-    - run: nix flake check --show-trace
+    - run: nix flake check --show-trace --impure
+      env:
+        NIXPKGS_ALLOW_UNFREE: 1
     - run: nix eval .#lib.x86_64-linux.run --show-trace
