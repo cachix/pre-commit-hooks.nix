@@ -130,6 +130,15 @@ in
       default = [ ];
     };
 
+    exclude_types = mkOption {
+      type = types.listOf types.str;
+      description = lib.mdDoc
+        ''
+          List of file types to exclude. See [Filtering files with types](https://pre-commit.com/#plugins).
+        '';
+      default = [ ];
+    };
+
     pass_filenames = mkOption {
       type = types.bool;
       description = lib.mdDoc ''
@@ -178,12 +187,20 @@ in
         if true this hook will run even if there are no matching files.
       '';
     };
+
+    args = mkOption {
+      type = types.listOf types.str;
+      description = lib.mdDoc ''
+        List of additional parameters to pass to the hook.
+      '';
+      default = [ ];
+    };
   };
 
   config = {
     raw =
       {
-        inherit (config) name entry language files types types_or pass_filenames fail_fast require_serial stages verbose always_run;
+        inherit (config) name entry language files types types_or exclude_types pass_filenames fail_fast require_serial stages verbose always_run args;
         id = config.name;
         exclude = mergeExcludes config.excludes;
       };
