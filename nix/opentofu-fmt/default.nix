@@ -1,6 +1,6 @@
-{ writeScriptBin, terraform }:
+{ writeScriptBin, opentofu }:
 
-writeScriptBin "terraform-fmt" ''
+writeScriptBin "opentofu-fmt" ''
   #!/usr/bin/env bash
   for arg in "$@"; do
     dirname "$arg"
@@ -8,6 +8,6 @@ writeScriptBin "terraform-fmt" ''
     | sort \
     | uniq \
     | while read dir; do
-        ${terraform}/bin/terraform fmt "$dir"
+        ${opentofu}/bin/tofu fmt "$dir"
       done
 ''
