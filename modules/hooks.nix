@@ -2,7 +2,7 @@
 let
   inherit (config) hooks tools settings;
   cfg = config;
-  inherit (lib) flatten mapAttrs mapAttrsToList mkDefault mkOption mkRenamedOptionModule types;
+  inherit (lib) flatten mapAttrs mapAttrsToList mkDefault mkOption mkRemovedOptionModule mkRenamedOptionModule types;
 
   hookModule =
     [
@@ -42,7 +42,15 @@ in
     })
     # Rename the remaining `settings.<name>` to `hooks.<name>.settings`
     ++ map (name: mkRenamedOptionModule [ "settings" name ] [ "hooks" name "settings" ])
-      [ "ansible-lint" "autoflake" "clippy" "cmake-format" "credo" "deadnix" "denofmt" "denolint" "dune-fmt" "eslint" "flake8" "headache" "hlint" "hpack" "isort" "latexindent" "lua-ls" "lychee" "markdownlint" "mkdocs-linkcheck" "mypy" "nixfmt" "ormolu" "php-cs-fixer" "phpcbf" "phpcs" "phpstan" "prettier" "psalm" "pylint" "pyright" "pyupgrade" "revive" "rome" "statix" "typos" "vale" "yamllint" ];
+      [ "ansible-lint" "autoflake" "clippy" "cmake-format" "credo" "deadnix" "denofmt" "denolint" "dune-fmt" "eslint" "flake8" "headache" "hlint" "hpack" "isort" "latexindent" "lua-ls" "lychee" "markdownlint" "mkdocs-linkcheck" "mypy" "nixfmt" "ormolu" "php-cs-fixer" "phpcbf" "phpcs" "phpstan" "prettier" "psalm" "pylint" "pyright" "pyupgrade" "revive" "rome" "statix" "typos" "vale" "yamllint" ]
+    # These options were renamed in 20fbe2c9731810b1020572a2cb6cbf64e3dd3873 to avoid shadowing
+    ++ map (name: mkRenamedOptionModule [ "hooks" name "settings" "config" ] [ "hooks" name "settings" "configuration" ])
+      [ "typos" "vale" ]
+    ++ [
+      (mkRemovedOptionModule [ "hooks" "yamllint" "settings" "relaxed" ] ''
+        This option has been removed. Use `hooks.yamllint.settings.preset = "relaxed"`.
+      '')
+    ];
 
   # PLEASE keep this sorted alphabetically.
   options.settings = {
@@ -1368,7 +1376,7 @@ in
                 default = "auto";
               };
 
-            config =
+            configuration =
               mkOption {
                 type = types.str;
                 description = lib.mdDoc "Multiline-string configuration passed as config file. If set, config set in `typos.settings.configPath` gets ignored.";
@@ -1489,7 +1497,7 @@ in
         type = types.submodule {
           imports = hookModule;
           options.settings = {
-            config =
+            configuration =
               mkOption {
                 type = types.str;
                 description = lib.mdDoc "Multiline-string configuration passed as config file.";
@@ -1520,18 +1528,52 @@ in
         type = types.submodule {
           imports = hookModule;
           options.settings = {
-            relaxed = mkOption {
-              type = types.bool;
-              description = lib.mdDoc "Whether to use the relaxed configuration.";
-              default = false;
-            };
+            # `list-files` is not useful for a pre-commit hook as it always exits with exit code 0
+            # `no-warnings` is not useful for a pre-commit hook as it exits with exit code 2 and the hook
+            # therefore fails when warnings level problems are detected but there is no output
+            configuration = mkOption {
+              type = types.str;
+              description = lib.mdDoc "Multiline-string configuration passed as config file. If set, configuration file set in `yamllint.settings.configPath` gets ignored.";
+              default = "";
+              example = ''
+                ---
 
+                extends: relaxed
+
+                rules:
+                  indentation: enable
+              '';
+            };
+            configData = mkOption {
+              type = types.str;
+              description = lib.mdDoc "Serialized YAML object describing the configuration.";
+              default = "";
+              example = "{extends: relaxed, rules: {line-length: {max: 120}}}";
+            };
             configPath = mkOption {
               type = types.str;
-              description = lib.mdDoc "Path to the YAML configuration file.";
-              # an empty string translates to use default configuration of the
-              # underlying yamllint binary
+              description = lib.mdDoc "Path to a custom configuration file.";
+              # An empty string translates to yamllint looking for a configuration file in the
+              # following locations (by order of preference):
+              # a file named .yamllint, .yamllint.yaml or .yamllint.yml in the current working directory
+              # a filename referenced by $YAMLLINT_CONFIG_FILE, if set
+              # a file named $XDG_CONFIG_HOME/yamllint/config or ~/.config/yamllint/config, if present
               default = "";
+            };
+            format = mkOption {
+              type = types.enum [ "parsable" "standard" "colored" "github" "auto" ];
+              description = lib.mdDoc "Format for parsing output.";
+              default = "auto";
+            };
+            preset = mkOption {
+              type = types.enum [ "default" "relaxed" ];
+              description = lib.mdDoc "The configuration preset to use.";
+              default = "default";
+            };
+            strict = mkOption {
+              type = types.bool;
+              description = lib.mdDoc "Return non-zero exit code on warnings as well as errors.";
+              default = true;
             };
           };
         };
@@ -2921,15 +2963,15 @@ in
           entry =
             let
               # Concatenate config in config file with section for ignoring words generated from list of words to ignore
-              config = "${hooks.typos.settings.config}" + lib.strings.optionalString (hooks.typos.settings.ignored-words != [ ]) "\n\[default.extend-words\]" + lib.strings.concatMapStrings (x: "\n${x} = \"${x}\"") hooks.typos.settings.ignored-words;
-              configFile = builtins.toFile "typos-config.toml" config;
+              configuration = "${hooks.typos.settings.configuration}" + lib.strings.optionalString (hooks.typos.settings.ignored-words != [ ]) "\n\[default.extend-words\]" + lib.strings.concatMapStrings (x: "\n${x} = \"${x}\"") hooks.typos.settings.ignored-words;
+              configFile = builtins.toFile "typos-config.toml" configuration;
               cmdArgs =
                 mkCmdArgs
                   (with hooks.typos.settings; [
                     [ binary "--binary" ]
                     [ (color != "auto") "--color ${color}" ]
-                    [ (config != "") "--config ${configFile}" ]
-                    [ (configPath != "" && config == "") "--config ${configPath}" ]
+                    [ (configuration != "") "--config ${configFile}" ]
+                    [ (configPath != "" && configuration == "") "--config ${configPath}" ]
                     [ diff "--diff" ]
                     [ (exclude != "") "--exclude ${exclude} --force-exclude" ]
                     [ (format != "long") "--format ${format}" ]
@@ -2959,13 +3001,12 @@ in
         package = tools.vale;
         entry =
           let
-            # TODO: was .vale.ini, throwed error in Nix
-            configFile = builtins.toFile "vale.ini" "${hooks.vale.settings.config}";
+            configFile = builtins.toFile ".vale.ini" "${hooks.vale.settings.configuration}";
             cmdArgs =
               mkCmdArgs
                 (with hooks.vale.settings; [
                   [ (configPath != "") " --config ${configPath}" ]
-                  [ (config != "" && configPath == "") " --config ${configFile}" ]
+                  [ (configuration != "" && configPath == "") " --config ${configFile}" ]
                 ]);
           in
           "${hooks.vale.package}/bin/vale${cmdArgs} ${hooks.vale.settings.flags}";
@@ -2974,16 +3015,23 @@ in
       yamllint =
         {
           name = "yamllint";
-          description = "Yaml linter.";
+          description = "Linter for YAML files.";
           types = [ "file" "yaml" ];
           package = tools.yamllint;
           entry =
             let
+              configFile = builtins.toFile "yamllint.yaml" "${hooks.yamllint.settings.configuration}";
               cmdArgs =
-                mkCmdArgs [
-                  [ (hooks.yamllint.settings.relaxed) "-d relaxed" ]
-                  [ (hooks.yamllint.settings.configPath != "") "-c ${hooks.yamllint.settings.configPath}" ]
-                ];
+                mkCmdArgs
+                  (with hooks.yamllint.settings; [
+                    # Priorize multiline configuration over serialized configuration and configuration file
+                    [ (configuration != "") "--config-file ${configFile}" ]
+                    [ (configData != "" && configuration == "") "--config-data \"${configData}\"" ]
+                    [ (configPath != "" && configData == "" && configuration == "" && preset == "default") "--config-file ${configPath}" ]
+                    [ (format != "auto") "--format ${format}" ]
+                    [ (preset != "default" && configuration == "") "--config-data ${preset}" ]
+                    [ strict "--strict" ]
+                  ]);
             in
             "${hooks.yamllint.package}/bin/yamllint ${cmdArgs}";
         };
