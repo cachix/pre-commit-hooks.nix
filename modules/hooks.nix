@@ -2484,7 +2484,7 @@ in
           name = "opentofu-format";
           description = "Format OpenTofu (`.tf`) files.";
           package = tools.opentofu-fmt;
-          entry = "${hooks.opentofu-format.package}/bin/opentofu-fmt";
+          entry = "${hooks.opentofu-format.package}/bin/tofu fmt --check";
           files = "\\.tf$";
         };
       ormolu =
@@ -2857,8 +2857,8 @@ in
         {
           name = "terraform-format";
           description = "Format Terraform (`.tf`) files.";
-          package = tools.terraform-fmt;
-          entry = "${hooks.terraform-format.package}/bin/terraform-fmt";
+          package = tools.terraform;
+          entry = "${hooks.terraform-format.package}/bin/terraform fmt --check";
           files = "\\.tf$";
         };
       tflint =
