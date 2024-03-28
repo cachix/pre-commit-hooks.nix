@@ -179,8 +179,6 @@ in
   hpack-dir = callPackage ./hpack-dir { };
   hunspell = callPackage ./hunspell { };
   purty = callPackage ./purty { purty = nodePackages.purty; };
-  terraform-fmt = callPackage ./terraform-fmt { };
-  opentofu-fmt = callPackage ./opentofu-fmt { };
   tflint = callPackage ./tflint { };
   dune-build-opam-files = callPackage ./dune-build-opam-files { dune = dune_3; inherit (pkgsBuildBuild) ocaml; };
   dune-fmt = callPackage ./dune-fmt { dune = dune_3; inherit (pkgsBuildBuild) ocaml; };
