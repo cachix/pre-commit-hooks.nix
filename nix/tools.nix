@@ -68,6 +68,7 @@
 , stylua
 , tagref
 , taplo
+, terraform
 , texlive
 , tflint
 , topiary ? null ## Added in nixpkgs on Dec 2, 2022
@@ -146,6 +147,7 @@ in
     stylua
     tagref
     taplo
+    terraform
     topiary
     treefmt
     typos
