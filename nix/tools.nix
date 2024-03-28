@@ -50,6 +50,7 @@
 , nodePackages
 , ocamlPackages
 , opam
+, opentofu
 , ormolu
 , pkgsBuildBuild
 , pre-commit-hook-ensure-sops ? null
@@ -134,6 +135,7 @@ in
     nixfmt
     nixpkgs-fmt
     opam
+    opentofu
     ormolu
     pre-commit-hook-ensure-sops
     revive
