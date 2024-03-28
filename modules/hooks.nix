@@ -793,6 +793,28 @@ in
           };
         };
       };
+      no-commit-to-branch = mkOption {
+        description = lib.mdDoc "no-commit-to-branch-hook";
+        type = types.submodule {
+          imports = hookModule;
+          options.settings = {
+            branch =
+              mkOption {
+                description = lib.mdDoc "Branches to disallow commits to.";
+                type = types.listOf types.str;
+                default = [ "main" ];
+                example = [ "main" "master" ];
+              };
+            pattern =
+              mkOption {
+                description = lib.mdDoc "RegEx patterns for branch names to disallow commits to.";
+                type = types.listOf types.str;
+                default = [ ];
+                example = [ "ma.*" ];
+              };
+          };
+        };
+      };
       ormolu = mkOption {
         description = lib.mdDoc "ormolu hook";
         type = types.submodule {
@@ -1313,6 +1335,26 @@ in
           };
         };
       };
+      sort-file-contents = mkOption {
+        description = lib.mdDoc "sort-file-contents-hook";
+        type = types.submodule {
+          imports = hookModule;
+          options.settings = {
+            ignore-case =
+              mkOption {
+                type = types.bool;
+                description = lib.mdDoc "Fold lower case to upper case characters.";
+                default = false;
+              };
+            unique =
+              mkOption {
+                type = types.bool;
+                description = lib.mdDoc "Ensure each line is unique.";
+                default = false;
+              };
+          };
+        };
+      };
       treefmt = mkOption {
         description = lib.mdDoc ''
           Treefmt hook.
@@ -1360,14 +1402,12 @@ in
                 description = lib.mdDoc "Whether to search binary files.";
                 default = false;
               };
-
             color =
               mkOption {
                 type = types.enum [ "auto" "always" "never" ];
                 description = lib.mdDoc "When to use generate output.";
                 default = "auto";
               };
-
             config =
               mkOption {
                 type = types.str;
@@ -1594,6 +1634,7 @@ in
         {
           name = "autoflake";
           description = "Remove unused imports and variables from Python code";
+
           package = tools.autoflake;
           entry =
             let
@@ -1665,6 +1706,120 @@ in
             "The version of nixpkgs used by pre-commit-hooks.nix must have `checkmake` in version at least 0.2.2 for it to work on non-Linux systems."
             "${hooks.checkmake.package}/bin/checkmake";
       };
+      check-added-large-files =
+        {
+          name = "check-added-large-files";
+          description = "Prevent very large files to be committed (e.g. binaries).";
+          package = tools.pre-commit-hooks;
+          entry = "${hooks.check-added-large-files.package}/bin/check-added-large-files";
+          stages = [ "commit" "push" "manual" ];
+        };
+      check-builtin-literals =
+        {
+          name = "check-builtin-literals";
+          description = "Require literal syntax when initializing empty or zero builtin types in Python.";
+          package = tools.pre-commit-hooks;
+          entry = "${hooks.check-builtin-literals.package}/bin/check-builtin-literals";
+          types = [ "python" ];
+        };
+      check-case-conflicts =
+        {
+          name = "check-case-conflicts";
+          description = "Check for files that would conflict in case-insensitive filesystems.";
+          package = tools.pre-commit-hooks;
+          entry = "${hooks.check-case-conflicts.package}/bin/check-case-conflict";
+          types = [ "file" ];
+        };
+      check-docstring-first =
+        {
+          name = "check-docstring-above";
+          description = "Check that all docstrings appear above the code.";
+          package = tools.pre-commit-hooks;
+          entry = "${hooks.check-docstring-first.package}/bin/check-docstring-first";
+          types = [ "python" ];
+        };
+      check-executables-have-shebangs =
+        {
+          name = "check-executables-have-shebangs";
+          description = "Ensure that all non-binary executables have shebangs.";
+          package = tools.pre-commit-hooks;
+          entry = "${hooks.check-executables-have-shebangs.package}/bin/check-executables-have-shebangs";
+          types = [ "text" "executable" ];
+          stages = [ "commit" "push" "manual" ];
+        };
+      check-json =
+        {
+          name = "check-json";
+          description = "Check syntax of JSON files.";
+          package = tools.pre-commit-hooks;
+          entry = "${hooks.check-json.package}/bin/check-json";
+          types = [ "json" ];
+        };
+      check-merge-conflicts =
+        {
+          name = "check-merge-conflicts";
+          description = "Check for files that contain merge conflict strings.";
+          package = tools.pre-commit-hooks;
+          entry = "${hooks.check-merge-conflicts.package}/bin/check-merge-conflict";
+          types = [ "text" ];
+        };
+      check-python =
+        {
+          name = "check-python";
+          description = "Check syntax of Python file by parsing Python abstract syntax tree.";
+          package = tools.pre-commit-hooks;
+          entry = "${hooks.check-python.package}/bin/check-ast";
+          types = [ "python" ];
+        };
+      check-shebang-scripts-are-executable =
+        {
+          name = "check-shebang-scripts-are-executable";
+          description = "Ensure that all (non-binary) files with a shebang are executable.";
+          package = tools.pre-commit-hooks;
+          entry = "${hooks.check-shebang-scripts-are-executable.package}/bin/check-shebang-scripts-are-executable";
+          types = [ "text" ];
+          stages = [ "commit" "push" "manual" ];
+        };
+      check-symlinks =
+        {
+          name = "check-symlinks";
+          description = "Find broken symlinks.";
+          package = tools.pre-commit-hooks;
+          entry = "${hooks.check-symlinks.package}/bin/check-symlinks";
+          types = [ "symlink" ];
+        };
+      check-toml =
+        {
+          name = "check-toml";
+          description = "Check syntax of TOML files.";
+          package = tools.pre-commit-hooks;
+          entry = "${hooks.check-toml.package}/bin/check-toml";
+          types = [ "toml" ];
+        };
+      check-vcs-permalinks =
+        {
+          name = "check-vcs-permalinks";
+          description = "Ensure that links to VCS websites are permalinks.";
+          package = tools.pre-commit-hooks;
+          entry = "${hooks.check-vcs-permalinks.package}/bin/check-vcs-permalinks";
+          types = [ "text" ];
+        };
+      check-xml =
+        {
+          name = "check-xml";
+          description = "Check syntax of TOML files.";
+          package = tools.pre-commit-hooks;
+          entry = "${hooks.check-xml.package}/bin/check-xml";
+          types = [ "xml" ];
+        };
+      check-yaml =
+        {
+          name = "check-yaml";
+          description = "Check syntax of YAML files.";
+          package = tools.pre-commit-hooks;
+          entry = "${hooks.check-yaml.package}/bin/check-yaml --multi";
+          types = [ "yaml" ];
+        };
       chktex =
         {
           name = "chktex";
@@ -1857,6 +2012,22 @@ in
             in
             "${hooks.denolint.package}/bin/deno lint ${cmdArgs}";
         };
+      detect-aws-credentials =
+        {
+          name = "detect-aws-credentials";
+          description = "Detect AWS credentials from the AWS cli credentials file.";
+          package = tools.pre-commit-hooks;
+          entry = "${hooks.detect-aws-credentials.package}/bin/detect-aws-credentials --allow-missing-credentials";
+          types = [ "text" ];
+        };
+      detect-private-keys =
+        {
+          name = "detect-private-keys";
+          description = "Detect the presence of private keys.";
+          package = tools.pre-commit-hooks;
+          entry = "${hooks.detect-private-keys.package}/bin/detect-private-key";
+          types = [ "text" ];
+        };
       dhall-format = {
         name = "dhall-format";
         description = "Dhall code formatter.";
@@ -1926,6 +2097,14 @@ in
           entry = "${hooks.editorconfig-checker.package}/bin/editorconfig-checker";
           types = [ "file" ];
         };
+      end-of-file-fixer =
+        {
+          name = "end-of-file-fixer";
+          description = "Ensures that a file is either empty, or ends with a single newline.";
+          package = tools.pre-commit-hooks;
+          entry = "${hooks.end-of-file-fixer.package}/bin/end-of-file-fixer";
+          types = [ "text" ];
+        };
       elm-format =
         {
           name = "elm-format";
@@ -1956,6 +2135,7 @@ in
         {
           name = "eslint";
           description = "Find and fix problems in your JavaScript code.";
+
           package = tools.eslint;
           entry =
             let
@@ -1963,6 +2143,22 @@ in
             in
             "${binPath} --fix";
           files = "${hooks.eslint.settings.extensions}";
+        };
+      fix-byte-order-marker =
+        {
+          name = "fix-byte-order-marker";
+          description = "Remove UTF-8 byte order marker.";
+          package = tools.pre-commit-hooks;
+          entry = "${hooks.fix-byte-order-marker.package}/bin/fix-byte-order-marker";
+          types = [ "text" ];
+        };
+      fix-encoding-pragma =
+        {
+          name = "fix-encoding-pragma";
+          description = "Adds \# -*- coding: utf-8 -*- to the top of Python files.'";
+          package = tools.pre-commit-hooks;
+          entry = "${hooks.fix-encoding-pragma.package}/bin/fix-encoding-pragma";
+          types = [ "python" ];
         };
       flake8 =
         let
@@ -1974,6 +2170,7 @@ in
         {
           name = "flake8";
           description = "Check the style and quality of Python files.";
+
           package = tools.flake8;
           entry =
             let
@@ -2007,6 +2204,14 @@ in
             "${binPath} ${cmdArgs}";
           types = [ "python" ];
         };
+      forbid-new-submodules =
+        {
+          name = "forbid-new-submodules";
+          description = "Prevent addition of new Git submodules.";
+          package = tools.pre-commit-hooks;
+          entry = "${hooks.forbid-new-submodules.package}/bin/forbid-new-submodules";
+          types = [ "directory" ];
+        };
       fourmolu =
         {
           name = "fourmolu";
@@ -2014,8 +2219,8 @@ in
           package = tools.fourmolu;
           entry =
             "${hooks.fourmolu.package}/bin/fourmolu --mode inplace ${
-            lib.escapeShellArgs (lib.concatMap (ext: [ "--ghc-opt" "-X${ext}" ]) hooks.ormolu.settings.defaultExtensions)
-            }";
+lib.escapeShellArgs (lib.concatMap (ext: [ "--ghc-opt" "-X${ext}" ]) hooks.ormolu.settings.defaultExtensions)
+}";
           files = "\\.l?hs(-boot)?$";
         };
       fprettify = {
@@ -2378,6 +2583,13 @@ in
           entry = toString script;
           files = "\\.md$";
         };
+      mixed-line-endings = {
+        name = "mixed-line-endings";
+        description = "Resolve mixed line endings.";
+        package = tools.pre-commit-hooks;
+        entry = "${hooks.mixed-line-endings.package}/bin/mixed-line-ending";
+        types = [ "text" ];
+      };
       mix-format = {
         name = "mix-format";
         description = "Runs the built-in Elixir syntax formatter";
@@ -2416,9 +2628,18 @@ in
         {
           name = "mypy";
           description = "Static type checker for Python";
+
           package = tools.mypy;
           entry = migrateBinPathToPackage hooks.mypy "/bin/mypy";
           files = "\\.py$";
+        };
+      name-tests-test =
+        {
+          name = "mypy";
+          description = "Verify that Python test files are named correctly.";
+          package = tools.pre-commit-hooks;
+          entry = "${hooks.name-tests-test.package}/bin/tests_should_end_in_test.py";
+          files = "(^|/)tests/\.+\\.py$";
         };
       nil =
         {
@@ -2463,6 +2684,24 @@ in
           entry = "${hooks.nixpkgs-fmt.package}/bin/nixpkgs-fmt";
           files = "\\.nix$";
         };
+      no-commit-to-branch =
+        {
+          name = "no-commit-to-branch";
+          description = "Disallow committing to certain branch/branches.";
+          pass_filenames = false;
+          always_run = true;
+          package = tools.pre-commit-hooks;
+          entry =
+            let
+              cmdArgs =
+                mkCmdArgs
+                  (with hooks.no-commit-to-branch.settings; [
+                    [ (branch != [ ]) "--branch ${lib.strings.concatStringsSep " --branch " branch}" ]
+                    [ (pattern != [ ]) "--pattern ${lib.strings.concatStringsSep " --pattern " pattern}" ]
+                  ]);
+            in
+            "${hooks.no-commit-to-branch.package}/bin/no-commit-to-branch ${cmdArgs}";
+        };
       ocp-indent =
         {
           name = "ocp-indent";
@@ -2498,6 +2737,7 @@ in
         {
           name = "php-cs-fixer";
           description = "Lint PHP files.";
+
           package = tools.php-cs-fixer;
           entry =
             let
@@ -2510,6 +2750,7 @@ in
         {
           name = "phpcbf";
           description = "Lint PHP files.";
+
           package = tools.phpcbf;
           entry = migrateBinPathToPackage hooks.phpcbf "/bin/phpcbf";
           types = [ "php" ];
@@ -2518,6 +2759,7 @@ in
         {
           name = "phpcs";
           description = "Lint PHP files.";
+
           package = tools.phpcs;
           entry = migrateBinPathToPackage hooks.phpcs "/bin/phpcs";
           types = [ "php" ];
@@ -2526,6 +2768,7 @@ in
         {
           name = "phpstan";
           description = "Static Analysis of PHP files.";
+
           package = tools.phpstan;
           entry =
             let
@@ -2533,6 +2776,14 @@ in
             in
             "${binPath} analyse";
           types = [ "php" ];
+        };
+      pretty-format-json =
+        {
+          name = "pretty-format-json";
+          description = "Formats JSON files.";
+          package = tools.pre-commit-hooks;
+          entry = "${hooks.pretty-format-json.package}/bin/pretty-format-json";
+          types = [ "json" ];
         };
       pre-commit-hook-ensure-sops = {
         name = "pre-commit-hook-ensure-sops";
@@ -2556,6 +2807,7 @@ in
           name = "prettier";
           description = "Opinionated multi-language code formatter.";
           types = [ "text" ];
+
           package = tools.prettier;
           entry =
             let
@@ -2608,6 +2860,7 @@ in
         {
           name = "psalm";
           description = "Static Analysis of PHP files.";
+
           package = tools.psalm;
           entry = migrateBinPathToPackage hooks.psalm "/bin/psalm";
           types = [ "php" ];
@@ -2632,6 +2885,7 @@ in
         {
           name = "pylint";
           description = "Lint Python files.";
+
           package = tools.pylint;
           entry =
             let
@@ -2650,14 +2904,24 @@ in
         {
           name = "pyright";
           description = "Static type checker for Python";
+
           package = tools.pyright;
           entry = migrateBinPathToPackage hooks.pyright "/bin/pyright";
           files = "\\.py$";
+        };
+      python-debug-statements =
+        {
+          name = "python-debug-statements";
+          description = "Check for debugger imports and py37+ `breakpoint()` calls in python source.";
+          package = tools.pre-commit-hooks;
+          entry = "${hooks.python-debug-statements.package}/bin/debug-statement-hook";
+          types = [ "python" ];
         };
       pyupgrade =
         {
           name = "pyupgrade";
           description = "Automatically upgrade syntax for newer versions.";
+
           package = tools.pyupgrade;
           entry = migrateBinPathToPackage hooks.pyupgrade "/bin/pyupgrade";
           types = [ "python" ];
@@ -2716,6 +2980,7 @@ in
           name = "rome";
           description = "Unified developer tools for JavaScript, TypeScript, and the web";
           types_or = [ "javascript" "jsx" "ts" "tsx" "json" ];
+
           package = tools.biome;
           entry =
             let
@@ -2745,7 +3010,7 @@ in
             nativeBuildInputs = [ pkgs.makeWrapper ];
             postBuild = ''
               wrapProgram $out/bin/cargo-fmt \
-                --prefix PATH : ${lib.makeBinPath [ packageOverrides.cargo packageOverrides.rustfmt ]}
+              --prefix PATH : ${lib.makeBinPath [ packageOverrides.cargo packageOverrides.rustfmt ]}
             '';
           };
         in
@@ -2773,6 +3038,48 @@ in
           types = [ "shell" ];
           package = tools.shfmt;
           entry = "${hooks.shfmt.package}/bin/shfmt -w -s -l";
+        };
+      single-quoted-strings =
+        {
+          name = "single-quoted-strings";
+          description = "Replace double quoted strings with single quoted strings.";
+          package = tools.pre-commit-hooks;
+          entry = "${hooks.single-quoted-strings.package}/bin/double-quote-string-fixer";
+          types = [ "python" ];
+        };
+      sort-file-contents =
+        {
+          name = "sort-file-contents";
+          description = "Sort the lines in specified files (defaults to alphabetical).";
+          types = [ "text" ];
+          package = tools.pre-commit-hooks;
+          entry =
+            let
+              cmdArgs =
+                mkCmdArgs
+                  (with hooks.sort-file-contents.settings;
+                  [
+                    [ ignore-case "--ignore-case" ]
+                    [ unique "--unique" ]
+                  ]);
+            in
+            "${hooks.sort-file-contents.package}/bin/file-contents-sorter ${cmdArgs}";
+        };
+      sort-requirements-txt =
+        {
+          name = "sort-requirements.txt";
+          description = "Sort requirements in requirements.txt and constraints.txt files.";
+          package = tools.pre-commit-hooks;
+          entry = "${hooks.sort-requirements-txt.package}/bin/requirements-txt-fixer";
+          files = "\\.*(requirements|constraints)\\.*\\.txt$";
+        };
+      sort-simple-yaml =
+        {
+          name = "sort-simple-yaml";
+          description = "Sort simple YAML files which consist only of top-level keys, preserving comments and blocks.";
+          package = tools.pre-commit-hooks;
+          entry = "${hooks.sort-simple-yaml.package}/bin/sort-simple-yaml";
+          files = "(\\.yaml$)|(\\.yml$)";
         };
       staticcheck =
         {
@@ -2887,6 +3194,15 @@ in
                 "${topiary-inplace}/bin/topiary-inplace"
               );
           files = "(\\.json$)|(\\.toml$)|(\\.mli?$)";
+        };
+      trim-trailing-whitespace =
+        {
+          name = "trim-trailing-whitespace";
+          description = "Trim trailing whitespace.";
+          types = [ "text" ];
+          stages = [ "commit" "push" "manual" ];
+          package = tools.pre-commit-hooks;
+          entry = "${hooks.trim-trailing-whitespace.package}/bin/trailing-whitespace-fixer";
         };
       treefmt =
         let
