@@ -50,6 +50,7 @@
 , nodePackages
 , ocamlPackages
 , opam
+, opentofu
 , ormolu
 , pkgsBuildBuild
 , pre-commit-hook-ensure-sops ? null
@@ -68,6 +69,7 @@
 , stylua
 , tagref
 , taplo
+, terraform
 , texlive
 , tflint
 , topiary ? null ## Added in nixpkgs on Dec 2, 2022
@@ -133,6 +135,7 @@ in
     nixfmt
     nixpkgs-fmt
     opam
+    opentofu
     ormolu
     pre-commit-hook-ensure-sops
     revive
@@ -146,6 +149,7 @@ in
     stylua
     tagref
     taplo
+    terraform
     topiary
     treefmt
     typos
@@ -175,7 +179,6 @@ in
   hpack-dir = callPackage ./hpack-dir { };
   hunspell = callPackage ./hunspell { };
   purty = callPackage ./purty { purty = nodePackages.purty; };
-  terraform-fmt = callPackage ./terraform-fmt { };
   tflint = callPackage ./tflint { };
   dune-build-opam-files = callPackage ./dune-build-opam-files { dune = dune_3; inherit (pkgsBuildBuild) ocaml; };
   dune-fmt = callPackage ./dune-fmt { dune = dune_3; inherit (pkgsBuildBuild) ocaml; };

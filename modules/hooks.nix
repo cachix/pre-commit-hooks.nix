@@ -2479,6 +2479,14 @@ in
           entry = "${hooks.opam-lint.package}/bin/opam lint";
           files = "\\.opam$";
         };
+      opentofu-format =
+        {
+          name = "opentofu-format";
+          description = "Format OpenTofu (`.tf`) files.";
+          package = tools.opentofu;
+          entry = "${hooks.opentofu-format.package}/bin/tofu fmt -check -diff";
+          files = "\\.tf$";
+        };
       ormolu =
         {
           name = "ormolu";
@@ -2848,9 +2856,9 @@ in
       terraform-format =
         {
           name = "terraform-format";
-          description = "Format terraform (`.tf`) files.";
-          package = tools.terraform-fmt;
-          entry = "${hooks.terraform-format.package}/bin/terraform-fmt";
+          description = "Format Terraform (`.tf`) files.";
+          package = tools.terraform;
+          entry = "${hooks.terraform-format.package}/bin/terraform fmt -check -diff";
           files = "\\.tf$";
         };
       tflint =
