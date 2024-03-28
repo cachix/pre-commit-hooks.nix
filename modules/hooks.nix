@@ -2483,7 +2483,7 @@ in
         {
           name = "opentofu-format";
           description = "Format OpenTofu (`.tf`) files.";
-          package = tools.opentofu-fmt;
+          package = tools.opentofu;
           entry = "${hooks.opentofu-format.package}/bin/tofu fmt --check";
           files = "\\.tf$";
         };
