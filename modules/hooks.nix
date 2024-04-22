@@ -4,11 +4,6 @@ let
   cfg = config;
   inherit (lib) flatten mapAttrs mapAttrsToList mkDefault mkOption mkRemovedOptionModule mkRenamedOptionModule types;
 
-  cargoManifestPathArg =
-    lib.optionalString
-      (settings.rust.cargoManifestPath != null)
-      "--manifest-path ${lib.escapeShellArg settings.rust.cargoManifestPath}";
-
   mkCmdArgs = predActionList:
     lib.concatStringsSep
       " "
@@ -22,6 +17,17 @@ let
     if hook.settings.binPath == null
     then "${hook.package}${binPath}"
     else hook.settings.binPath;
+
+  commonCargoSettings = import ./cargo/common-settings.nix {
+    inherit lib;
+    inherit (settings.rust) cargoManifestPath;
+  };
+
+  mkAdditionalArgs = args: lib.optionalString (args != "") " -- ${args}";
+
+  cargoHooks = { inherit (config.hooks) cargo-bench cargo-check cargo-test clippy; };
+
+  toGNUCommandLineShell = lib.cli.toGNUCommandLineShell { };
 in
 {
   imports =
@@ -62,6 +68,86 @@ in
     config._module.args.default_stages = cfg.default_stages;
   };
   config._module.args.hookModule = config.hookModule;
+
+  config.assertions =
+    let
+      forAllCargoHooks = assertions:
+        lib.mapAttrsToList
+          (hook: { settings, ... }: assertions "${hook}.settings" settings)
+          cargoHooks;
+    in
+    [ ]
+    ++ forAllCargoHooks (hook: { profile ? null, release ? false, ... }: {
+      assertion = release -> profile == null;
+      message = "Options `${hook}.release` and `${hook}.profile` are mutually exclusive";
+    })
+    ++ forAllCargoHooks (hook: { exclude ? [ ], workspace ? false, ... }: {
+      assertion = exclude != [ ] -> workspace;
+      message = "Option `${hook}.exclude` requires `${hook}.workspace == true`";
+    })
+    ++ forAllCargoHooks (hook: { package ? [ ], workspace ? false, ... }: {
+      assertion = package != [ ] -> workspace;
+      message = "Option `${hook}.package` requires `${hook}.workspace == true`";
+    })
+    ++ forAllCargoHooks (hook: { bench ? [ ], benches ? false, ... }: {
+      assertion = benches -> bench == [ ];
+      message = "Options `${hook}.bench` and `${hook}.benches` are mutually exclusive";
+    })
+    ++ forAllCargoHooks (hook: { bin ? [ ], bins ? false, ... }: {
+      assertion = bins -> bin == [ ];
+      message = "Options `${hook}.bin` and `${hook}.bins` are mutually exclusive";
+    })
+    ++ forAllCargoHooks (hook: { example ? [ ], examples ? false, ... }: {
+      assertion = examples -> example == [ ];
+      message = "Options `${hook}.example` and `${hook}.examples` are mutually exclusive";
+    })
+    ++ forAllCargoHooks (hook: { test ? [ ], tests ? false, ... }: {
+      assertion = tests -> test == [ ];
+      message = "Options `${hook}.test` and `${hook}.tests` are mutually exclusive";
+    })
+    ++ forAllCargoHooks (
+      hook:
+      { all-targets ? false
+      , bench ? [ ]
+      , benches ? false
+      , bin ? [ ]
+      , bins ? false
+      , example ? [ ]
+      , examples ? false
+      , lib ? false
+      , test ? [ ]
+      , tests ? false
+      , ...
+      }: {
+        assertion = all-targets -> (
+          !lib
+          && bench == [ ] && !benches
+          && bin == [ ] && !bins
+          && example == [ ] && !examples
+          && test == [ ] && !tests
+        );
+        message = "The `${hook}.all-targets` option and other target options are mutually exclusive";
+      }
+    )
+    ++ forAllCargoHooks (hook: { all-features ? false, features ? [ ], ... }: {
+      assertion = all-features -> features == [ ];
+      message = "Options `${hook}.all-features` and `${hook}.features` are mutually exclusive";
+    })
+    ++ forAllCargoHooks (hook: { all-features ? false, no-default-features ? false, ... }: {
+      assertion = all-features -> !no-default-features;
+      message = "Options `${hook}.all-features` and `${hook}.no-default-features` are mutually exclusive";
+    })
+    ++ forAllCargoHooks (hook: { frozen ? false, locked ? false, ... }: {
+      assertion = locked -> !frozen;
+      message = "Options `${hook}.locked` and `${hook}.frozen` are mutually exclusive";
+    });
+
+  config.warnings = lib.optional cfg.hooks.clippy.settings.allFeatures ''
+    The option `allFeatures` of `clippy.settings` was renamed to `all-features`.
+  ''
+  ++ lib.optional cfg.hooks.clippy.settings.denyWarnings ''
+    The option `denyWarnings` of `clippy.settings` is deprecated, use `deny = [ "warnings" ]`.
+  '';
 
   # PLEASE keep this sorted alphabetically.
   options.settings = {
@@ -169,36 +255,143 @@ in
           };
         };
       };
+      cargo-bench = mkOption {
+        description = lib.mdDoc "cargo bench hook";
+        type = types.submodule {
+          imports = [ hookModule ];
+          options.settings = (builtins.removeAttrs commonCargoSettings [ "release" ]) // {
+            bench-args = mkOption {
+              type = types.attrs;
+              description = lib.mdDoc "Arguments for the bench binaries";
+              default = { };
+            };
+            no-fail-fast = mkOption {
+              type = types.bool;
+              description = lib.mdDoc "Run all bench targets regardless of failure";
+              default = false;
+            };
+          };
+        };
+      };
+      cargo-check = mkOption {
+        description = lib.mdDoc "cargo check hook";
+        type = types.submodule {
+          imports = [ hookModule ];
+          options.settings = commonCargoSettings;
+        };
+      };
+      cargo-doc = mkOption {
+        description = lib.mdDoc "cargo doc hook";
+        type = types.submodule {
+          imports = [ hookModule ];
+          options.settings = (builtins.removeAttrs commonCargoSettings [
+            "all-targets"
+            "bench"
+            "benches"
+            "test"
+            "tests"
+            "future-incompat-report"
+          ]) // {
+            document-private-items = mkOption {
+              type = types.bool;
+              description = lib.mdDoc "Include non-public items in the documentation.";
+              default = false;
+            };
+            no-deps = mkOption {
+              type = types.bool;
+              description = lib.mdDoc "Do not build documentation for dependencies";
+              default = false;
+            };
+          };
+        };
+      };
+      cargo-test = mkOption {
+        description = lib.mdDoc "cargo test hook";
+        type = types.submodule {
+          imports = [ hookModule ];
+          options.settings = commonCargoSettings // {
+            no-fail-fast = mkOption {
+              type = types.bool;
+              description = lib.mdDoc "Run all tests regardless of failure";
+              default = false;
+            };
+            test-args = mkOption {
+              type = types.attrs;
+              description = lib.mdDoc "Arguments for the test binaries";
+              default = { };
+            };
+          };
+        };
+      };
       clippy = mkOption {
         description = lib.mdDoc "clippy hook";
         type = types.submodule {
           imports = [ hookModule ];
-          options.packageOverrides = {
-            cargo = mkOption {
-              type = types.package;
-              description = lib.mdDoc "The cargo package to use";
+          options = {
+            packageOverrides = {
+              cargo = mkOption {
+                type = types.package;
+                description = lib.mdDoc "The cargo package to use";
+              };
+              clippy = mkOption {
+                type = types.package;
+                description = lib.mdDoc "The clippy package to use";
+              };
             };
-            clippy = mkOption {
-              type = types.package;
-              description = lib.mdDoc "The clippy package to use";
-            };
-          };
-          options.settings = {
-            denyWarnings = mkOption {
-              type = types.bool;
-              description = lib.mdDoc "Fail when warnings are present";
-              default = false;
-            };
-            offline = mkOption {
-              type = types.bool;
-              description = lib.mdDoc "Run clippy offline";
-              default = true;
-            };
-            allFeatures = mkOption {
-              type = types.bool;
-              description = lib.mdDoc "Run clippy with --all-features";
-              default = false;
-            };
+            settings =
+              let
+                lintType = types.strMatching "[0-9a-z_]";
+              in
+              commonCargoSettings // {
+                allFeatures = commonCargoSettings.all-features // {
+                  visible = false;
+                };
+                all-features = commonCargoSettings.all-features // {
+                  default = cfg.hooks.clippy.settings.allFeatures;
+                };
+                allow = mkOption {
+                  type = types.listOf lintType;
+                  description = lib.mdDoc "Set lint allowed";
+                  default = [ ];
+                };
+                deny = mkOption {
+                  type = types.listOf lintType;
+                  description = lib.mdDoc "Set lint denied";
+                  default = [ ];
+                  apply = deny:
+                    deny ++ lib.optional cfg.hooks.clippy.settings.denyWarnings "warnings";
+                };
+                denyWarnings = mkOption {
+                  type = types.bool;
+                  description = lib.mdDoc "Fail when warnings are present";
+                  default = false;
+                  visible = false;
+                };
+                fix = mkOption {
+                  type = types.bool;
+                  description = lib.mdDoc ''
+                    Automatically apply lint suggestions.
+                    This flag implies --no-deps and --all-targets.
+                  '';
+                  default = false;
+                };
+                forbid = mkOption {
+                  type = types.listOf lintType;
+                  description = lib.mdDoc "Set lint forbidden";
+                  default = [ ];
+                };
+                no-deps = mkOption {
+                  type = types.bool;
+                  description = lib.mdDoc
+                    "Run Clippy only on the given crate, without linting the dependencies";
+                  default = false;
+                };
+                warn = mkOption {
+                  type = types.listOf lintType;
+                  description = lib.mdDoc "Set lint warnings";
+                  default = [ ];
+                };
+              };
           };
         };
       };
@@ -1315,7 +1508,7 @@ in
       };
       rustfmt = mkOption {
         description = lib.mdDoc ''
-          Additional rustfmt settings
+          Additional settings
 
           Override the `rustfmt` and `cargo` packages by setting `hooks.rustfmt.packageOverrides`.
 
@@ -1326,15 +1519,86 @@ in
         '';
         type = types.submodule {
           imports = [ hookModule ];
-          options.packageOverrides = {
-            cargo = mkOption {
-              type = types.package;
-              description = lib.mdDoc "The cargo package to use.";
+          options = {
+            packageOverrides = {
+              cargo = mkOption {
+                type = types.package;
+                description = lib.mdDoc "The cargo package to use.";
+              };
+              rustfmt = mkOption {
+                type = types.package;
+                description = lib.mdDoc "The rustfmt package to use.";
+              };
             };
-            rustfmt = mkOption {
-              type = types.package;
-              description = lib.mdDoc "The rustfmt package to use.";
-            };
+            settings =
+              let
+                nameType = types.strMatching "[][*?!0-9A-Za-z_-]+";
+              in
+              {
+                all = mkOption {
+                  type = types.bool;
+                  description = lib.mdDoc "Format all packages, and also their local path-based dependencies";
+                  default = true;
+                };
+                check = mkOption {
+                  type = types.bool;
+                  description = lib.mdDoc "Run rustfmt in check mode";
+                  default = false;
+                };
+                color = mkOption {
+                  type = types.enum [ "auto" "always" "never" ];
+                  description = lib.mdDoc "Coloring the output";
+                  default = "always";
+                };
+                config = mkOption {
+                  type = types.attrs;
+                  description = lib.mdDoc "Override configuration values";
+                  default = { };
+                  apply = config:
+                    let
+                      config' = lib.mapAttrsToList
+                        (key: value: "${key}=${toString value}")
+                        config;
+                    in
+                    lib.optionalString (config != { }) (builtins.concatStringsSep "," config');
+                };
+                config-path = mkOption {
+                  type = types.nullOr types.str;
+                  description = lib.mdDoc "Path to rustfmt.toml config file";
+                  default = null;
+                };
+                emit = mkOption {
+                  type = types.nullOr (types.enum [ "files" "stdout" ]);
+                  description = lib.mdDoc "What data to emit and how";
+                  default = null;
+                };
+                files-with-diff = mkOption {
+                  type = types.bool;
+                  description = lib.mdDoc "";
+                  default = cfg.hooks.rustfmt.settings.message-format == "short";
+                };
+                manifest-path = mkOption {
+                  type = types.nullOr types.str;
+                  description = lib.mdDoc "Path to Cargo.toml";
+                  default = settings.rust.cargoManifestPath;
+                };
+                message-format = mkOption {
+                  type = types.nullOr (types.enum [ "human" "short" ]);
+                  description = lib.mdDoc
+                    "The output format of diagnostic messages";
+                  default = null;
+                };
+                package = mkOption {
+                  type = types.listOf nameType;
+                  description = lib.mdDoc "Package(s) to check";
+                  default = [ ];
+                };
+                verbose = mkOption {
+                  type = types.bool;
+                  description = lib.mdDoc "Use verbose output";
+                  default = false;
+                };
+              };
           };
         };
       };
@@ -1744,12 +2008,65 @@ in
           entry = "${hooks.cabal2nix.package}/bin/cabal2nix-dir";
           files = "\\.cabal$";
         };
+      cargo-bench =
+        {
+          name = "cargo-bench";
+          description = "Execute all benchmarks of a local package";
+          package = tools.cargo;
+          entry =
+            let
+              inherit (hooks.cargo-bench) package settings;
+              benchArgs = toGNUCommandLineShell settings.bench-args;
+              cargoArgs = toGNUCommandLineShell (builtins.removeAttrs settings [
+                "bench-args"
+              ]);
+            in
+            "${package}/bin/cargo bench ${cargoArgs}${mkAdditionalArgs benchArgs}";
+          files = "\\.rs$";
+          pass_filenames = false;
+        };
       cargo-check =
         {
           name = "cargo-check";
           description = "Check the cargo package for errors";
           package = tools.cargo;
-          entry = "${hooks.cargo-check.package}/bin/cargo check ${cargoManifestPathArg}";
+          entry =
+            let
+              inherit (hooks.cargo-check) package settings;
+              cargoArgs = toGNUCommandLineShell settings;
+            in
+            "${package}/bin/cargo check ${cargoArgs}";
+          files = "\\.rs$";
+          pass_filenames = false;
+        };
+      cargo-doc =
+        {
+          name = "cargo-doc";
+          description = "Build the documentation for the local package and all dependencies";
+          package = tools.cargo;
+          entry =
+            let
+              inherit (hooks.cargo-doc) package settings;
+              cargoArgs = toGNUCommandLineShell settings;
+            in
+            "${package}/bin/cargo doc ${cargoArgs}";
+          files = "\\.rs$";
+          pass_filenames = false;
+        };
+      cargo-test =
+        {
+          name = "cargo-test";
+          description = "Execute unit and integration tests of a cargo package";
+          package = tools.cargo;
+          entry =
+            let
+              inherit (hooks.cargo-test) package settings;
+              cargoArgs = toGNUCommandLineShell (builtins.removeAttrs settings [
+                "test-args"
+              ]);
+              testArgs = toGNUCommandLineShell settings.test-args;
+            in
+            "${package}/bin/cargo test ${cargoArgs}${mkAdditionalArgs testArgs}";
           files = "\\.rs$";
           pass_filenames = false;
         };
@@ -1932,8 +2249,24 @@ in
           name = "clippy";
           description = "Lint Rust code.";
           package = wrapper;
-          packageOverrides = { cargo = tools.cargo; clippy = tools.clippy; };
-          entry = "${hooks.clippy.package}/bin/cargo-clippy clippy ${cargoManifestPathArg} ${lib.optionalString hooks.clippy.settings.offline "--offline"} ${lib.optionalString hooks.clippy.settings.allFeatures "--all-features"} -- ${lib.optionalString hooks.clippy.settings.denyWarnings "-D warnings"}";
+          packageOverrides = { inherit (tools) cargo clippy; };
+          entry =
+            let
+              inherit (hooks.clippy) package settings;
+              cargoArgs = toGNUCommandLineShell (builtins.removeAttrs settings [
+                "allFeatures"
+                "allow"
+                "deny"
+                "denyWarnings"
+                "forbid"
+                "no-deps"
+                "warn"
+              ]);
+              clippyArgs = toGNUCommandLineShell {
+                inherit (settings) allow deny forbid no-deps warn;
+              };
+            in
+            "${package}/bin/cargo-clippy clippy ${cargoArgs}${mkAdditionalArgs clippyArgs}";
           files = "\\.rs$";
           pass_filenames = false;
         };
@@ -3102,7 +3435,7 @@ lib.escapeShellArgs (lib.concatMap (ext: [ "--ghc-opt" "-X${ext}" ]) hooks.ormol
             nativeBuildInputs = [ pkgs.makeWrapper ];
             postBuild = ''
               wrapProgram $out/bin/cargo-fmt \
-              --prefix PATH : ${lib.makeBinPath [ packageOverrides.cargo packageOverrides.rustfmt ]}
+              --prefix PATH : ${lib.makeBinPath (builtins.attrValues packageOverrides)}
             '';
           };
         in
@@ -3110,8 +3443,19 @@ lib.escapeShellArgs (lib.concatMap (ext: [ "--ghc-opt" "-X${ext}" ]) hooks.ormol
           name = "rustfmt";
           description = "Format Rust code.";
           package = wrapper;
-          packageOverrides = { cargo = tools.cargo; rustfmt = tools.rustfmt; };
-          entry = "${hooks.rustfmt.package}/bin/cargo-fmt fmt ${cargoManifestPathArg} --all -- --color always";
+          packageOverrides = { inherit (tools) cargo rustfmt; };
+          entry =
+            let
+              inherit (hooks) rustfmt;
+              inherit (rustfmt) settings;
+              cargoArgs = toGNUCommandLineShell {
+                inherit (settings) all package verbose;
+              };
+              rustfmtArgs = toGNUCommandLineShell {
+                inherit (settings) check color config emit verbose;
+              };
+            in
+            "${rustfmt.package}/bin/cargo-fmt fmt ${cargoArgs}${mkAdditionalArgs rustfmtArgs}";
           files = "\\.rs$";
           pass_filenames = false;
         };
