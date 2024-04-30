@@ -3348,6 +3348,24 @@ lib.escapeShellArgs (lib.concatMap (ext: [ "--ghc-opt" "-X${ext}" ]) hooks.ormol
           package = tools.pre-commit-hooks;
           entry = "${hooks.trim-trailing-whitespace.package}/bin/trailing-whitespace-fixer";
         };
+      trufflehog =
+        {
+          name = "trufflehog";
+          description = "Secrets scanner";
+          # entry = "${hooks.trufflehog.package}/bin/trufflehog --no-update git file://''$(git rev-parse --show-top-level) --since-commit HEAD --only-verified --fail";
+          entry =
+            let
+              script = pkgs.writeShellScript "precommit-trufflehog" ''
+                set -e
+                ${hooks.trufflehog.package}/bin/trufflehog --no-update git "file://$(git rev-parse --show-top-level)" --since-commit HEAD --only-verified --fail
+              '';
+            in
+            builtins.toString script;
+          package = pkgs.trufflehog;
+
+          # trufflehog expects to run across the whole repo, not particular files
+          pass_filenames = false;
+        };
       typos =
         {
           name = "typos";
