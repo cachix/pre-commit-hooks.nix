@@ -3314,15 +3314,6 @@ lib.escapeShellArgs (lib.concatMap (ext: [ "--ghc-opt" "-X${ext}" ]) hooks.ormol
               );
           files = "(\\.json$)|(\\.toml$)|(\\.mli?$)";
         };
-      trim-trailing-whitespace =
-        {
-          name = "trim-trailing-whitespace";
-          description = "Trim trailing whitespace.";
-          types = [ "text" ];
-          stages = [ "commit" "push" "manual" ];
-          package = tools.pre-commit-hooks;
-          entry = "${hooks.trim-trailing-whitespace.package}/bin/trailing-whitespace-fixer";
-        };
       treefmt =
         let
           inherit (hooks.treefmt) packageOverrides settings;
@@ -3347,6 +3338,15 @@ lib.escapeShellArgs (lib.concatMap (ext: [ "--ghc-opt" "-X${ext}" ]) hooks.ormol
           package = wrapper;
           packageOverrides = { treefmt = tools.treefmt; };
           entry = "${hooks.treefmt.package}/bin/treefmt --fail-on-change";
+        };
+      trim-trailing-whitespace =
+        {
+          name = "trim-trailing-whitespace";
+          description = "Trim trailing whitespace.";
+          types = [ "text" ];
+          stages = [ "commit" "push" "manual" ];
+          package = tools.pre-commit-hooks;
+          entry = "${hooks.trim-trailing-whitespace.package}/bin/trailing-whitespace-fixer";
         };
       typos =
         {
