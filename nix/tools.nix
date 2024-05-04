@@ -38,6 +38,7 @@
 , html-tidy
 , luaPackages
 , lua-language-server
+, ltex-ls
 , lychee
 , julia-bin
 , mdl
@@ -120,6 +121,7 @@ in
     hlint
     hpack
     html-tidy
+    ltex-ls
     lychee
     julia-bin
     mdl
