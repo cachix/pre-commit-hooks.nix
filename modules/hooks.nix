@@ -661,6 +661,17 @@ in
           };
         };
       };
+      ltex-ls = mkOption {
+        description = lib.mdDoc "ltex-ls hook";
+        type = types.submodule {
+          imports = [ hookModule ];
+          options.settings = mkOption {
+            type = types.attrs;
+            description = lib.mdDoc "See https://valentjn.github.io/ltex/settings.html";
+            default = { };
+          };
+        };
+      };
       lychee = mkOption {
         description = "lychee hook";
         type = types.submodule {
@@ -2678,6 +2689,19 @@ lib.escapeShellArgs (lib.concatMap (ext: [ "--ghc-opt" "-X${ext}" ]) hooks.ormol
           package = tools.luacheck;
           entry = "${hooks.luacheck.package}/bin/luacheck";
         };
+      ltex-ls = rec {
+        name = "ltex-ls";
+        description = "Offline grammar checking of various markup languages using LanguageTool (LT).";
+        types_or = [ "tex" "markdown" "rst" "bib" ];
+        package = tools.ltex-ls;
+        entry =
+          let
+            configuration = pkgs.writeText "ltex-ls.json" (
+              builtins.toJSON hooks.ltex-ls.settings
+            );
+          in
+          "${package}/bin/ltex-cli --client-configuration ${configuration} --server-command-line ${package}/bin/ltex-ls";
+      };
       lychee = {
         name = "lychee";
         description = "A fast, async, stream-based link checker that finds broken hyperlinks and mail addresses inside Markdown, HTML, reStructuredText, or any other text file or website.";
