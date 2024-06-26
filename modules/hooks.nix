@@ -3445,7 +3445,7 @@ lib.escapeShellArgs (lib.concatMap (ext: [ "--ghc-opt" "-X${ext}" ]) hooks.ormol
           lib.throwIf
             (hooks.typstyle.package == null)
             "The version of nixpkgs used by pre-commit-hooks.nix must contain typstyle"
-            "${hooks.typstyle.package}/bin/typstyle";
+            "${hooks.typstyle.package}/bin/typstyle -i";
         files = "\\.typ$";
       };
       vale = {
