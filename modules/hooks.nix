@@ -3323,9 +3323,26 @@ lib.escapeShellArgs (lib.concatMap (ext: [ "--ghc-opt" "-X${ext}" ]) hooks.ormol
       terraform-format =
         {
           name = "terraform-format";
-          description = "Format terraform (`.tf`) files.";
-          package = tools.terraform-fmt;
-          entry = "${hooks.terraform-format.package}/bin/terraform-fmt";
+          description = "Format Terraform (`.tf`) files.";
+          package = tools.opentofu;
+          entry =
+            let
+              terraform-fmt = pkgs.writeScriptBin "terraform-fmt" ''
+                #!/usr/bin/env bash
+
+                opentofu_or_terraform() {
+                  local bin_dir=${hooks.terraform-format.package}
+                  if [ -f "''${bin_dir}/bin/tofu" ]; then
+                    ''${bin_dir}/bin/tofu "$@"
+                  else
+                    ''${bin_dir}/bin/terraform "$@"
+                  fi
+                }
+
+                opentofu_or_terraform fmt -check -diff "$@"
+              '';
+            in
+            "${terraform-fmt}/bin/terraform-fmt";
           files = "\\.tf$";
         };
       tflint =
